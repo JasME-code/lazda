@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <!-- Product Image (same as your detail page) -->
+        <ImageView
+            android:id="@+id/ivProductImage"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="#FFFFFF"
+            android:scaleType="centerCrop"
+            android:src="@drawable/img" />
+
+        <!-- Product Info (EXACT same styling) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Price (same #F57224, 24sp bold) -->
+            <TextView
+                android:id="@+id/tvProductPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₱ 0.00"
+                android:textColor="#F57224"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <!-- Name (same #212121, 16sp) -->
+            <TextView
+                android:id="@+id/tvProductName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Product Name"
+                android:textColor="#212121"
+                android:textSize="16sp" />
+
+            <!-- Rating (same #FF9800, 14sp) -->
+            <TextView
+                android:id="@+id/tvProductRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="⭐ 0.0 / 5.0"
+                android:textColor="#FF9800"
+                android:textSize="14sp" />
+
+            <!-- Seller (same #757575, 13sp) -->
+            <TextView
+                android:id="@+id/tvProductSeller"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Sold by: Seller"
+                android:textColor="#757575"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
