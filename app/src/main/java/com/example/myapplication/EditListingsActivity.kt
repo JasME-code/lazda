@@ -16,9 +16,10 @@ class EditListingsActivity : AppCompatActivity() {
 
     private val sellerProducts = mutableListOf<Product>()
     private lateinit var adapter: Dashboard.ProductAdapter
-    private val dbRef = FirebaseDatabase.getInstance().getReference("products")
-    // IMPROVEMENT #9: Hold listener for cleanup
     private var listingsListener: ValueEventListener? = null
+
+    // ✅ FIXED: Correct database URL matching google-services.json
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +44,8 @@ class EditListingsActivity : AppCompatActivity() {
 
     private fun fetchSellerProducts() {
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        // ✅ FIXED: Uses databaseUrl
+        val dbRef = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
         listingsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 sellerProducts.clear()
@@ -60,9 +63,9 @@ class EditListingsActivity : AppCompatActivity() {
         dbRef.addValueEventListener(listingsListener!!)
     }
 
-    // IMPROVEMENT #9: Remove listener on destroy
     override fun onDestroy() {
         super.onDestroy()
+        val dbRef = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
         listingsListener?.let { dbRef.removeEventListener(it) }
     }
 }

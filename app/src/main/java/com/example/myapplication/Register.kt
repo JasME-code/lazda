@@ -25,6 +25,9 @@ class RegisterActivity : AppCompatActivity() {
     private lateinit var btnRegister: MaterialButton
     private lateinit var progressRegister: ProgressBar
 
+    // ✅ FIXED: Correct database URL matching google-services.json
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.signup)
@@ -96,7 +99,8 @@ class RegisterActivity : AppCompatActivity() {
                         "age"   to calculatedAge,
                         "role"  to role
                     )
-                    FirebaseDatabase.getInstance().getReference("users").child(uid)
+                    // ✅ FIXED: Now uses databaseUrl so it saves to the correct project
+                    FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(uid)
                         .setValue(userProfile)
                         .addOnSuccessListener {
                             setRegisterLoading(false)

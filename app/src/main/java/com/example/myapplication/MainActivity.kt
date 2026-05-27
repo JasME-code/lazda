@@ -19,8 +19,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnLogin: Button
     private lateinit var progressLogin: ProgressBar
 
-    // 🌟 Centralized regional database URL
-    private val databaseUrl = "https://lazada-5cf23-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    // ✅ FIXED: Correct database URL matching google-services.json
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkUserRole(uid: String) {
-        // 🌟 FIX HERE: Pass databaseUrl into getInstance() so it can find your data node instantly
+        // ✅ FIXED: Uses correct databaseUrl so user record is found
         FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(uid)
             .get()
             .addOnSuccessListener { snapshot ->

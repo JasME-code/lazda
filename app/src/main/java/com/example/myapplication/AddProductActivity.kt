@@ -11,6 +11,9 @@ import com.google.firebase.database.FirebaseDatabase
 
 class AddProductActivity : AppCompatActivity() {
 
+    // ✅ FIXED: Correct database URL matching google-services.json
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_product)
@@ -48,20 +51,17 @@ class AddProductActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // 3. Define Region Database URL
-            val databaseUrl = "https://lazada-5cf23-default-rtdb.asia-southeast1.firebasedatabase.app/"
-
-            // 4. Fetch Seller Display Name
+            // 3. Fetch Seller Display Name
             FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(uid)
                 .get().addOnSuccessListener { snapshot ->
 
                     val sellerName = snapshot.child("name").getValue(String::class.java) ?: "Unknown Seller"
 
-                    // 5. Generate Target Key Node
+                    // 4. Generate Target Key Node
                     val dbRef  = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
                     val newKey = dbRef.push().key ?: (uid + "_" + System.currentTimeMillis())
 
-                    // 6. Build the Domain Instance
+                    // 5. Build the Domain Instance
                     val newProduct = Product(
                         id           = newKey.hashCode(),
                         name         = name,
@@ -79,7 +79,7 @@ class AddProductActivity : AppCompatActivity() {
                         firebaseKey  = newKey
                     )
 
-                    // 7. Write Structured MAP Payload to database node
+                    // 6. Write Structured MAP Payload to database node
                     dbRef.child(newKey).setValue(newProduct.toFirebaseMap())
                         .addOnSuccessListener {
                             Toast.makeText(this, "Success: $name is now live!", Toast.LENGTH_SHORT).show()

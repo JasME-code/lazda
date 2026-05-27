@@ -10,11 +10,13 @@ import com.google.firebase.database.FirebaseDatabase
 
 class UpdateProductActivity : AppCompatActivity() {
 
+    // ✅ FIXED: Correct database URL matching google-services.json
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_update_product)
 
-        // Receive the product passed from EditListingsActivity
         val product = intent.getParcelableExtra<Product>("PRODUCT_DATA")
         if (product == null) {
             Toast.makeText(this, "Error loading product", Toast.LENGTH_SHORT).show()
@@ -22,21 +24,20 @@ class UpdateProductActivity : AppCompatActivity() {
             return
         }
 
-        val etName   = findViewById<EditText>(R.id.etUpdateName)
-        val etPrice  = findViewById<EditText>(R.id.etUpdatePrice)
-        val etDesc   = findViewById<EditText>(R.id.etUpdateDesc)
-        val btnSave  = findViewById<Button>(R.id.btnUpdateProduct)
+        val etName    = findViewById<EditText>(R.id.etUpdateName)
+        val etPrice   = findViewById<EditText>(R.id.etUpdatePrice)
+        val etDesc    = findViewById<EditText>(R.id.etUpdateDesc)
+        val btnSave   = findViewById<Button>(R.id.btnUpdateProduct)
         val btnDelete = findViewById<Button>(R.id.btnDeleteProduct)
 
-        // Pre-fill fields with current values
         etName.setText(product.name)
         etPrice.setText(product.price.toString())
         etDesc.setText(product.details.firstOrNull() ?: "")
 
-        val dbRef = FirebaseDatabase.getInstance().getReference("products")
+        // ✅ FIXED: Uses databaseUrl
+        val dbRef = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
         val key   = product.firebaseKey.ifEmpty { product.id.toString() }
 
-        // SAVE CHANGES
         btnSave.setOnClickListener {
             val newName  = etName.text.toString().trim()
             val newPrice = etPrice.text.toString().trim().toDoubleOrNull()
@@ -63,7 +64,6 @@ class UpdateProductActivity : AppCompatActivity() {
                 }
         }
 
-        // DELETE LISTING
         btnDelete.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("Delete listing")

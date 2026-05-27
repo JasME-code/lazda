@@ -24,8 +24,10 @@ class SellerDashboardActivity : AppCompatActivity() {
 
     private val liveOrders = mutableListOf<Map<String, Any>>()
     private lateinit var orderAdapter: ArrayAdapter<String>
-    // IMPROVEMENT #9: Hold listener reference for cleanup
     private var ordersListener: ValueEventListener? = null
+
+    // ✅ FIXED: Correct database URL matching google-services.json
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,13 +51,19 @@ class SellerDashboardActivity : AppCompatActivity() {
             val orderId  = orderMap["orderId"] as? String ?: return@setOnItemClickListener
             val status   = orderMap["status"] as? String ?: "Pending"
             val newStatus = when (status) { "Pending" -> "Shipped"; "Shipped" -> "Delivered"; else -> null }
-            if (newStatus == null) { Toast.makeText(this, "Order already finalized.", Toast.LENGTH_SHORT).show(); return@setOnItemClickListener }
-            FirebaseDatabase.getInstance().getReference("orders").child(orderId).child("status")
+            if (newStatus == null) {
+                Toast.makeText(this, "Order already finalized.", Toast.LENGTH_SHORT).show()
+                return@setOnItemClickListener
+            }
+            // ✅ FIXED: Uses databaseUrl
+            FirebaseDatabase.getInstance(databaseUrl).getReference("orders").child(orderId).child("status")
                 .setValue(newStatus)
                 .addOnSuccessListener {
                     Toast.makeText(this, "Order $newStatus! ${if (newStatus == "Shipped") "🚚" else "💰"}", Toast.LENGTH_SHORT).show()
                 }
-                .addOnFailureListener { e -> Toast.makeText(this, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show() }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
         }
 
         btnAdd.setOnClickListener    { startActivity(Intent(this, AddProductActivity::class.java)) }
@@ -72,18 +80,18 @@ class SellerDashboardActivity : AppCompatActivity() {
         }
     }
 
-    // IMPROVEMENT #9: Remove listener on destroy
     override fun onDestroy() {
         super.onDestroy()
         ordersListener?.let {
-            FirebaseDatabase.getInstance().getReference("orders").removeEventListener(it)
+            FirebaseDatabase.getInstance(databaseUrl).getReference("orders").removeEventListener(it)
         }
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun listenToSellerOrders() {
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        FirebaseDatabase.getInstance().getReference("users").child(currentUid)
+        // ✅ FIXED: Uses databaseUrl
+        FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(currentUid)
             .get().addOnSuccessListener { userSnapshot ->
                 val sellerName = userSnapshot.child("name").getValue(String::class.java) ?: ""
 
@@ -97,7 +105,6 @@ class SellerDashboardActivity : AppCompatActivity() {
                             val orderMap = child.value as? Map<String, Any> ?: continue
                             val items = orderMap["items"] as? List<Map<String, Any>> ?: emptyList()
 
-                            // Only orders that include this seller's products
                             val myItems = items.filter { item ->
                                 item["seller"] == sellerName || item["sellerUid"] == currentUid
                             }
@@ -105,7 +112,6 @@ class SellerDashboardActivity : AppCompatActivity() {
 
                             liveOrders.add(orderMap)
 
-                            // IMPROVEMENT #8: Count only THIS seller's item revenue, not full order total
                             if (orderMap["status"] == "Delivered") {
                                 myItems.forEach { item ->
                                     totalRevenue += (item["price"] as? Number)?.toDouble() ?: 0.0
@@ -130,7 +136,8 @@ class SellerDashboardActivity : AppCompatActivity() {
                         Toast.makeText(this@SellerDashboardActivity, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
-                FirebaseDatabase.getInstance().getReference("orders")
+                // ✅ FIXED: Uses databaseUrl
+                FirebaseDatabase.getInstance(databaseUrl).getReference("orders")
                     .addValueEventListener(ordersListener!!)
             }
     }
