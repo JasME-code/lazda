@@ -19,12 +19,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnLogin: Button
     private lateinit var progressLogin: ProgressBar
 
+    // 🌟 Centralized regional database URL
+    private val databaseUrl = "https://lazada-5cf23-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         auth = FirebaseAuth.getInstance()
-        auth.signOut()
+        auth.signOut() // Optional: clears past session on open
 
         btnLogin      = findViewById(R.id.btnLogin)
         progressLogin = findViewById(R.id.progressLogin)
@@ -54,8 +57,9 @@ class MainActivity : AppCompatActivity() {
             auth.signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener { authResult ->
                     val uid = authResult.user?.uid
-                    if (uid != null) checkUserRole(uid)
-                    else {
+                    if (uid != null) {
+                        checkUserRole(uid)
+                    } else {
                         setLoginLoading(false)
                         Toast.makeText(this, "Login failed. Try again.", Toast.LENGTH_SHORT).show()
                     }
@@ -82,7 +86,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkUserRole(uid: String) {
-        FirebaseDatabase.getInstance().getReference("users").child(uid)
+        // 🌟 FIX HERE: Pass databaseUrl into getInstance() so it can find your data node instantly
+        FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(uid)
             .get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot.exists()) {
