@@ -1,12 +1,18 @@
 package com.example.myapplication
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class CartActivity : AppCompatActivity() {
@@ -14,45 +20,28 @@ class CartActivity : AppCompatActivity() {
     private lateinit var tvTotal: TextView
     private lateinit var tvSubtotal: TextView
     private lateinit var listView: ListView
-    private lateinit var adapter: Dashboard.ProductAdapter
+    private lateinit var adapter: CartAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activitycart)
 
-        // 1. Setup Views
         tvTotal    = findViewById(R.id.tvCartTotal)
         tvSubtotal = findViewById(R.id.tvCartSubtotal)
         listView   = findViewById(R.id.lvCartItems)
 
-        // 2. Setup ListView with in-memory CartManager
-        // CartManager.cartList is populated when user taps products on Dashboard.
-        // Cart is intentionally in-memory (session-based), meaning it resets
-        // after app close — this matches common e-commerce UX for guest/session carts.
-        // If you want a persistent cart tied to a Firebase user, see the comment below.
-        adapter = Dashboard.ProductAdapter(this, CartManager.cartList)
+        // ✅ Use new CartAdapter with edit (qty) and delete buttons
+        adapter = CartAdapter(this, CartManager.cartItems) {
+            updateTotals()
+        }
         listView.adapter = adapter
 
         updateTotals()
 
-        // 3. Back Button
-        findViewById<ImageView>(R.id.btnBack)?.setOnClickListener {
-            finish()
-        }
+        findViewById<ImageView>(R.id.btnBack)?.setOnClickListener { finish() }
 
-        // 4. Long press to remove item
-        listView.setOnItemLongClickListener { _, _, position, _ ->
-            val removedItem = CartManager.cartList[position]
-            CartManager.cartList.removeAt(position)
-            adapter.notifyDataSetChanged()
-            updateTotals()
-            Toast.makeText(this, "Removed ${removedItem.name}", Toast.LENGTH_SHORT).show()
-            true
-        }
-
-        // 5. Checkout
         findViewById<Button>(R.id.btnCheckout).setOnClickListener {
-            if (CartManager.cartList.isEmpty()) {
+            if (CartManager.cartItems.isEmpty()) {
                 Toast.makeText(this, "Your cart is empty!", Toast.LENGTH_SHORT).show()
             } else {
                 val intent = Intent(this, CheckoutActivity::class.java).apply {
@@ -64,15 +53,74 @@ class CartActivity : AppCompatActivity() {
     }
 
     private fun updateTotals() {
-        val totalAmount = CartManager.cartList.sumOf { it.price }
-        val itemCount   = CartManager.cartList.size
-        tvTotal.text    = "₱ ${"%.2f".format(totalAmount)}"
-        tvSubtotal.text = "$itemCount Items"
+        tvTotal.text    = "₱ ${"%.2f".format(CartManager.getTotalPrice())}"
+        tvSubtotal.text = "${CartManager.getTotalItems()} Items"
     }
 
     override fun onResume() {
         super.onResume()
         adapter.notifyDataSetChanged()
         updateTotals()
+    }
+
+    // ✅ NEW: Cart adapter with + / - quantity controls and 🗑 delete per item
+    class CartAdapter(
+        private val context: Context,
+        private val items: MutableList<CartItem>,
+        private val onChanged: () -> Unit
+    ) : BaseAdapter() {
+
+        private val inflater = LayoutInflater.from(context)
+
+        override fun getCount()        = items.size
+        override fun getItem(i: Int)   = items[i]
+        override fun getItemId(i: Int) = i.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = convertView ?: inflater.inflate(R.layout.item_cart, parent, false)
+            val cartItem = getItem(position)
+            val product  = cartItem.product
+
+            view.findViewById<TextView>(R.id.tvCartItemName).text   = product.name
+            view.findViewById<TextView>(R.id.tvCartItemSeller).text = "Sold by: ${product.seller}"
+            view.findViewById<TextView>(R.id.tvCartItemPrice).text  =
+                "₱ ${"%.2f".format(product.price * cartItem.quantity)}"
+            view.findViewById<TextView>(R.id.tvCartQty).text        = cartItem.quantity.toString()
+
+            // ✅ INCREASE quantity
+            view.findViewById<Button>(R.id.btnIncrease).setOnClickListener {
+                if (cartItem.quantity >= product.stock) {
+                    Toast.makeText(context, "Max stock reached (${product.stock})", Toast.LENGTH_SHORT).show()
+                } else {
+                    CartManager.increaseQty(context, product.firebaseKey)
+                    notifyDataSetChanged()
+                    onChanged()
+                }
+            }
+
+            // ✅ DECREASE quantity (removes item if qty reaches 0)
+            view.findViewById<Button>(R.id.btnDecrease).setOnClickListener {
+                CartManager.decreaseQty(context, product.firebaseKey)
+                notifyDataSetChanged()
+                onChanged()
+            }
+
+            // ✅ DELETE item with confirmation dialog
+            view.findViewById<ImageView>(R.id.btnDeleteCartItem).setOnClickListener {
+                AlertDialog.Builder(context)
+                    .setTitle("Remove Item")
+                    .setMessage("Remove \"${product.name}\" from your cart?")
+                    .setPositiveButton("Remove") { _, _ ->
+                        CartManager.removeFromCart(context, product)
+                        notifyDataSetChanged()
+                        onChanged()
+                        Toast.makeText(context, "\"${product.name}\" removed", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+
+            return view
+        }
     }
 }

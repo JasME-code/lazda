@@ -25,6 +25,8 @@ import java.util.Locale
 
 class CheckoutActivity : AppCompatActivity() {
 
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activitycheckout)
@@ -40,14 +42,16 @@ class CheckoutActivity : AppCompatActivity() {
         val etAddress       = findViewById<EditText>(R.id.etAddress)
         val spinnerPayment  = findViewById<Spinner>(R.id.spinnerPayment)
 
-        spinnerPayment.adapter = ArrayAdapter(this,
+        spinnerPayment.adapter = ArrayAdapter(
+            this,
             android.R.layout.simple_spinner_dropdown_item,
-            arrayOf("Cash on Delivery (COD)", "GCash", "Lazada Wallet", "Credit Card"))
+            arrayOf("Cash on Delivery (COD)", "GCash", "Lazada Wallet", "Credit Card")
+        )
 
         lvCheckoutItems.adapter = Dashboard.ProductAdapter(this, selectedProducts)
 
-        val totalAmount = selectedProducts.sumOf { it.price }
-        val itemCount   = selectedProducts.size
+        val totalAmount    = selectedProducts.sumOf { it.price }
+        val itemCount      = selectedProducts.size
         tvTotalAmount.text = "₱ ${"%.2f".format(totalAmount)}"
         tvItemQty.text     = "Total ($itemCount items)"
 
@@ -57,42 +61,65 @@ class CheckoutActivity : AppCompatActivity() {
             val address       = etAddress.text.toString().trim()
             val paymentMethod = spinnerPayment.selectedItem.toString()
 
-            if (selectedProducts.isEmpty()) { Toast.makeText(this, "No items to order!", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-            if (address.isEmpty())          { Toast.makeText(this, "Please enter your shipping address!", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (selectedProducts.isEmpty()) {
+                Toast.makeText(this, "No items to order!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (address.isEmpty()) {
+                Toast.makeText(this, "Please enter your shipping address!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
             val currentUser = FirebaseAuth.getInstance().currentUser
-            if (currentUser == null) { Toast.makeText(this, "Please log in to place an order.", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (currentUser == null) {
+                Toast.makeText(this, "Please log in to place an order.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
-            // IMPROVEMENT #3: Disable button immediately — prevents duplicate orders
-            btnPlaceOrder.isEnabled   = false
-            btnPlaceOrder.text        = ""
-            progressOrder.visibility  = View.VISIBLE
+            btnPlaceOrder.isEnabled  = false
+            btnPlaceOrder.text       = ""
+            progressOrder.visibility = View.VISIBLE
 
-            val db        = FirebaseDatabase.getInstance()
+            val db        = FirebaseDatabase.getInstance(databaseUrl)
             val ordersRef = db.getReference("orders")
             val orderId   = ordersRef.push().key ?: "ORD-${System.currentTimeMillis()}"
             val sdf       = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
 
             val itemsSummary = selectedProducts.map { p ->
-                mapOf("id" to p.id, "name" to p.name, "price" to p.price,
-                      "seller" to p.seller, "sellerUid" to p.sellerUid, "firebaseKey" to p.firebaseKey)
+                mapOf(
+                    "id"          to p.id,
+                    "name"        to p.name,
+                    "price"       to p.price,
+                    "seller"      to p.seller,
+                    "sellerUid"   to p.sellerUid,
+                    "firebaseKey" to p.firebaseKey
+                )
             }
+
             val orderMap = hashMapOf(
-                "orderId" to orderId, "buyerUid" to currentUser.uid,
-                "totalPrice" to totalAmount, "address" to address,
-                "paymentMethod" to paymentMethod, "date" to sdf.format(Date()),
-                "status" to "Pending", "itemCount" to itemCount, "items" to itemsSummary
+                "orderId"       to orderId,
+                "buyerUid"      to currentUser.uid,
+                "totalPrice"    to totalAmount,
+                "address"       to address,
+                "paymentMethod" to paymentMethod,
+                "date"          to sdf.format(Date()),
+                "status"        to "Pending",
+                "itemCount"     to itemCount,
+                "items"         to itemsSummary
             )
 
             ordersRef.child(orderId).setValue(orderMap)
                 .addOnSuccessListener {
-                    // IMPROVEMENT #4: Atomic stock deduction using Firebase Transaction
                     val productsRef = db.getReference("products")
                     var pending = selectedProducts.size
+
                     for (product in selectedProducts) {
                         val key = product.firebaseKey.ifEmpty { product.id.toString() }
-                        if (key.isBlank()) { pending--; if (pending == 0) finishOrder(); continue }
-
+                        if (key.isBlank()) {
+                            pending--
+                            if (pending == 0) finishOrder()
+                            continue
+                        }
                         productsRef.child(key).child("stock")
                             .runTransaction(object : Transaction.Handler {
                                 override fun doTransaction(currentData: MutableData): Transaction.Result {
@@ -118,8 +145,11 @@ class CheckoutActivity : AppCompatActivity() {
     }
 
     private fun finishOrder() {
+        // ✅ FIXED: Use clearCart(context) instead of cartList.clear()
+        // cartList is now a computed read-only property in CartManager — it cannot be cleared directly
+        CartManager.clearCart(this)
+
         Toast.makeText(this, "Order Placed Successfully! 🎉", Toast.LENGTH_LONG).show()
-        CartManager.cartList.clear()
         val intent = Intent(this, OrderConfirmationActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(intent)

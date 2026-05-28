@@ -30,27 +30,26 @@ class ProductDetailActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvProductSeller).text = "Sold by: ${product.seller}"
         findViewById<ImageView>(R.id.ivProductImage).setImageResource(product.imageRes)
 
-        // FIX: Populate stock status
+        // Stock status
         val tvStock = findViewById<TextView>(R.id.tvStockStatus)
         when {
             product.stock <= 0 -> {
-                tvStock.text      = "Out of Stock"
+                tvStock.text = "Out of Stock"
                 tvStock.setTextColor(android.graphics.Color.parseColor("#D32F2F"))
-                // Disable add to cart / buy now if out of stock
                 findViewById<Button>(R.id.btnAddToCart).isEnabled = false
                 findViewById<Button>(R.id.btnBuyNow).isEnabled    = false
             }
             product.stock <= 5 -> {
-                tvStock.text      = "Only ${product.stock} left!"
-                tvStock.setTextColor(android.graphics.Color.parseColor("#F57224"))
+                tvStock.text = "Only ${product.stock} left!"
+                tvStock.setTextColor(android.graphics.Color.parseColor("#FF6900"))
             }
             else -> {
-                tvStock.text      = "In Stock (${product.stock} available)"
+                tvStock.text = "In Stock (${product.stock} available)"
                 tvStock.setTextColor(android.graphics.Color.parseColor("#2E7D32"))
             }
         }
 
-        // FIX: Populate specs from product fields
+        // Specs
         val specsBuilder = StringBuilder()
         if (product.material.isNotBlank()) specsBuilder.appendLine("• Material: ${product.material}")
         if (product.usage.isNotBlank())    specsBuilder.appendLine("• Usage: ${product.usage}")
@@ -62,12 +61,11 @@ class ProductDetailActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvProductSpecs).text =
             if (specsText.isNotEmpty()) specsText else "No specifications available."
 
-        // FIX: Populate reviews container with rating summary
+        // Reviews
         val llReviews = findViewById<LinearLayout>(R.id.llReviewsContainer)
         llReviews.removeAllViews()
         val reviewSummary = TextView(this).apply {
-            text = "⭐ ${product.rating} / 5.0 average rating\n" +
-                   "Be the first to review this product!"
+            text      = "⭐ ${product.rating} / 5.0 average rating\nBe the first to review this product!"
             textSize  = 14f
             setTextColor(android.graphics.Color.parseColor("#616161"))
         }
@@ -76,10 +74,15 @@ class ProductDetailActivity : AppCompatActivity() {
         // Back button
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
 
-        // Add to cart
+        // ✅ FIXED: Use addToCart() instead of cartList.add()
+        // cartList is now a read-only computed property — cannot call .add() on it directly
         findViewById<Button>(R.id.btnAddToCart).setOnClickListener {
-            CartManager.cartList.add(product)
-            Toast.makeText(this, "${product.name} added to cart! 🛒", Toast.LENGTH_SHORT).show()
+            if (CartManager.isInCart(product)) {
+                Toast.makeText(this, "${product.name} is already in your cart!", Toast.LENGTH_SHORT).show()
+            } else {
+                CartManager.addToCart(this, product)
+                Toast.makeText(this, "${product.name} added to cart! 🛒", Toast.LENGTH_SHORT).show()
+            }
             finish()
         }
 
