@@ -1,9 +1,11 @@
 package com.example.myapplication
 
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -11,23 +13,21 @@ import com.google.firebase.database.FirebaseDatabase
 
 class AddProductActivity : AppCompatActivity() {
 
-    // ✅ FIXED: Correct database URL matching google-services.json
     private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_product)
 
-        // UI Element Bindings
-        val btnSubmit    = findViewById<Button>(R.id.btnSubmitProduct)
-        val etName       = findViewById<EditText>(R.id.etProductName)
-        val etPrice      = findViewById<EditText>(R.id.etProductPrice)
-        val etQuantity   = findViewById<EditText>(R.id.etProductQuantity)
-        val etDesc       = findViewById<EditText>(R.id.etProductDesc)
-        val btnBack      = findViewById<ImageButton>(R.id.btnBack)
+        val btnSubmit  = findViewById<Button>(R.id.btnSubmitProduct)
+        val etName     = findViewById<EditText>(R.id.etProductName)
+        val etPrice    = findViewById<EditText>(R.id.etProductPrice)
+        val etQuantity = findViewById<EditText>(R.id.etProductQuantity)
+        val etDesc     = findViewById<EditText>(R.id.etProductDesc)
+        val btnBack    = findViewById<ImageButton>(R.id.btnBack)
+        val progress   = findViewById<ProgressBar>(R.id.progressBar)
 
-        // Back button action
-        btnBack?.setOnClickListener { finish() }
+        btnBack.setOnClickListener { finish() }
 
         btnSubmit.setOnClickListener {
             val name     = etName.text.toString().trim()
@@ -35,62 +35,78 @@ class AddProductActivity : AppCompatActivity() {
             val qtyStr   = etQuantity.text.toString().trim()
             val desc     = etDesc.text.toString().trim()
 
-            // 1. Inputs Validation Guard
             if (name.isEmpty() || priceStr.isEmpty() || qtyStr.isEmpty()) {
                 Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            val price    = priceStr.toDoubleOrNull() ?: 0.0
-            val quantity = qtyStr.toIntOrNull() ?: 0
+            val price    = priceStr.toDoubleOrNull()
+            val quantity = qtyStr.toIntOrNull()
 
-            // 2. Authentication Guard
-            val uid = FirebaseAuth.getInstance().currentUser?.uid
-            if (uid == null) {
-                Toast.makeText(this, "Error: You must be logged in to add products.", Toast.LENGTH_SHORT).show()
+            if (price == null || price <= 0) {
+                Toast.makeText(this, "Please enter a valid price", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (quantity == null || quantity < 0) {
+                Toast.makeText(this, "Please enter a valid quantity", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // 3. Fetch Seller Display Name
-            FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(uid)
-                .get().addOnSuccessListener { snapshot ->
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                Toast.makeText(this, "You must be logged in to add products", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
-                    val sellerName = snapshot.child("name").getValue(String::class.java) ?: "Unknown Seller"
+            val uid = currentUser.uid
 
-                    // 4. Generate Target Key Node
-                    val dbRef  = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
-                    val newKey = dbRef.push().key ?: (uid + "_" + System.currentTimeMillis())
+            // Show loading
+            progress.visibility = View.VISIBLE
+            btnSubmit.isEnabled = false
 
-                    // 5. Build the Domain Instance
-                    val newProduct = Product(
-                        id           = newKey.hashCode(),
-                        name         = name,
-                        price        = price,
-                        rating       = 5.0f,
-                        seller       = sellerName,
-                        imageRes     = R.drawable.img,
-                        category     = "General",
-                        stock        = quantity,
-                        material     = "Standard",
-                        usage        = "General",
-                        details      = listOf(desc),
-                        isRestricted = false,
-                        sellerUid    = uid,
-                        firebaseKey  = newKey
+            val db     = FirebaseDatabase.getInstance(databaseUrl)
+            val dbRef  = db.getReference("products")
+            val newKey = dbRef.push().key ?: "${uid}_${System.currentTimeMillis()}"
+
+            // ✅ FIXED: Get seller name from DB but with a timeout fallback
+            // so finish() always gets called even if the user read is slow
+            db.getReference("users").child(uid).get()
+                .addOnCompleteListener { task ->
+                    // Use DB name if available, fall back to email prefix
+                    val sellerName = if (task.isSuccessful && task.result.exists()) {
+                        task.result.child("name").getValue(String::class.java)
+                            ?: currentUser.email?.substringBefore("@") ?: "Seller"
+                    } else {
+                        currentUser.email?.substringBefore("@") ?: "Seller"
+                    }
+
+                    val productMap = mapOf(
+                        "id"           to newKey.hashCode(),
+                        "name"         to name,
+                        "price"        to price,
+                        "rating"       to 5.0,
+                        "seller"       to sellerName,
+                        "category"     to "General",
+                        "stock"        to quantity,
+                        "material"     to "Standard",
+                        "usage"        to "General",
+                        "details"      to listOf(desc),
+                        "isRestricted" to false,
+                        "sellerUid"    to uid,
+                        "firebaseKey"  to newKey
                     )
 
-                    // 6. Write Structured MAP Payload to database node
-                    dbRef.child(newKey).setValue(newProduct.toFirebaseMap())
+                    dbRef.child(newKey).setValue(productMap)
                         .addOnSuccessListener {
-                            Toast.makeText(this, "Success: $name is now live!", Toast.LENGTH_SHORT).show()
-                            finish()
+                            progress.visibility = View.GONE
+                            Toast.makeText(this, "\"$name\" added successfully! ✅", Toast.LENGTH_SHORT).show()
+                            finish() // ✅ Goes back to SellerDashboard
                         }
                         .addOnFailureListener { e ->
-                            Toast.makeText(this, "Database Write Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                            progress.visibility = View.GONE
+                            btnSubmit.isEnabled = true
+                            Toast.makeText(this, "Failed to save product: ${e.message}", Toast.LENGTH_LONG).show()
                         }
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(this, "Profile Fetch Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
         }
     }

@@ -49,6 +49,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
+                android:background="#EEEEEE"
                 app:cardCornerRadius="8dp"
                 app:cardElevation="2dp">
 
@@ -56,12 +57,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:background="#EEEEEE"
                     android:padding="16dp">
 
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:background="#EEEEEE"
                         android:gravity="center"
                         android:orientation="vertical">
 
@@ -69,7 +72,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Total Revenue"
-                            android:textColor="#757575"
+                            android:textColor="#555555"
                             android:textSize="13sp" />
 
                         <TextView
@@ -92,6 +95,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:background="#EEEEEE"
                         android:gravity="center"
                         android:orientation="vertical">
 
@@ -99,7 +103,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Items Sold"
-                            android:textColor="#757575"
+                            android:textColor="#555555"
                             android:textSize="13sp" />
 
                         <TextView
@@ -136,7 +140,7 @@
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#212121"
+                    android:backgroundTint="#F57224"
                     android:text="My Listings"
                     android:textColor="#FFFFFF"
                     android:textSize="13sp" />
@@ -156,14 +160,15 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
                 android:text="Tap an order to advance its status"
-                android:textColor="#9E9E9E"
+                android:textColor="#000000"
                 android:textSize="12sp" />
 
             <ListView
                 android:id="@+id/lvOrdersToFulfill"
                 android:layout_width="match_parent"
                 android:layout_height="500dp"
-                android:divider="#EEEEEE"
+                android:divider="#000000"
+                android:textColor="#000000"
                 android:dividerHeight="1dp"
                 android:nestedScrollingEnabled="true" />
 

@@ -1,9 +1,15 @@
 package com.example.myapplication
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
 import android.widget.ImageButton
 import android.widget.ListView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -15,10 +21,9 @@ import com.google.firebase.database.ValueEventListener
 class EditListingsActivity : AppCompatActivity() {
 
     private val sellerProducts = mutableListOf<Product>()
-    private lateinit var adapter: Dashboard.ProductAdapter
+    private lateinit var adapter: SellerProductAdapter
     private var listingsListener: ValueEventListener? = null
 
-    // ✅ FIXED: Correct database URL matching google-services.json
     private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,7 +34,7 @@ class EditListingsActivity : AppCompatActivity() {
         val btnBack        = findViewById<ImageButton>(R.id.btnBack)
         btnBack.setOnClickListener { finish() }
 
-        adapter = Dashboard.ProductAdapter(this, sellerProducts)
+        adapter = SellerProductAdapter(this, sellerProducts)
         lvEditListings.adapter = adapter
 
         fetchSellerProducts()
@@ -44,7 +49,6 @@ class EditListingsActivity : AppCompatActivity() {
 
     private fun fetchSellerProducts() {
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        // ✅ FIXED: Uses databaseUrl
         val dbRef = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
         listingsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -54,7 +58,8 @@ class EditListingsActivity : AppCompatActivity() {
                     if (product != null && product.sellerUid == currentUid) sellerProducts.add(product)
                 }
                 adapter.notifyDataSetChanged()
-                if (sellerProducts.isEmpty()) Toast.makeText(this@EditListingsActivity, "No listings yet. Add a product first!", Toast.LENGTH_SHORT).show()
+                if (sellerProducts.isEmpty())
+                    Toast.makeText(this@EditListingsActivity, "No listings yet. Add a product first!", Toast.LENGTH_SHORT).show()
             }
             override fun onCancelled(error: DatabaseError) {
                 Toast.makeText(this@EditListingsActivity, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
@@ -65,7 +70,36 @@ class EditListingsActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        val dbRef = FirebaseDatabase.getInstance(databaseUrl).getReference("products")
-        listingsListener?.let { dbRef.removeEventListener(it) }
+        listingsListener?.let {
+            FirebaseDatabase.getInstance(databaseUrl).getReference("products").removeEventListener(it)
+        }
+    }
+
+    // ✅ FIXED: Custom adapter using item_list_text.xml with explicit dark text colors
+    // so product name and price are always visible on white background
+    class SellerProductAdapter(
+        private val context: Context,
+        private val products: List<Product>
+    ) : BaseAdapter() {
+
+        private val inflater = LayoutInflater.from(context)
+
+        override fun getCount()        = products.size
+        override fun getItem(i: Int)   = products[i]
+        override fun getItemId(i: Int) = i.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val view = convertView ?: inflater.inflate(R.layout.item_list_text, parent, false)
+            val product = getItem(position)
+
+            // Line 1: product name — dark bold text
+            view.findViewById<TextView>(R.id.tvLine1).text = product.name
+
+            // Line 2: price + stock — visible subtitle text
+            view.findViewById<TextView>(R.id.tvLine2).text =
+                "₱${"%.2f".format(product.price)}  •  Stock: ${product.stock}  •  Tap to edit"
+
+            return view
+        }
     }
 }

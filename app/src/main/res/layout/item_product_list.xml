@@ -11,6 +11,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="#FFFFFF"
         android:clickable="true"
         android:focusable="true"
         android:orientation="horizontal"
@@ -52,7 +53,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Product Name"
-                android:textColor="#212121"
+                android:textColor="#111111"
                 android:textSize="16sp" />
 
             <!-- Rating (same #FF9800, 14sp) -->

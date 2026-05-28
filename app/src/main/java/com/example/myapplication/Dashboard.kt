@@ -28,11 +28,7 @@ class Dashboard : AppCompatActivity() {
     private val displayList  = mutableListOf<Product>()
     private lateinit var productAdapter: ProductAdapter
     private var userAge: Int = 0
-
-    // IMPROVEMENT #5: Remember the last search query
     private var lastQuery: String = ""
-
-    // IMPROVEMENT #9: Hold reference to listener so we can remove it in onDestroy
     private var productsListener: ValueEventListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,7 +77,6 @@ class Dashboard : AppCompatActivity() {
         database.addValueEventListener(productsListener!!)
     }
 
-    // IMPROVEMENT #9: Remove listener when activity is destroyed
     override fun onDestroy() {
         super.onDestroy()
         productsListener?.let { database.removeEventListener(it) }
@@ -120,14 +115,13 @@ class Dashboard : AppCompatActivity() {
     private fun filterAndRefreshList() {
         val base = if (userAge < 18) masterList.filter { !it.isRestricted } else masterList.toList()
         val filtered = if (lastQuery.isBlank()) base
-                       else base.filter { it.name.lowercase().contains(lastQuery) }
+        else base.filter { it.name.lowercase().contains(lastQuery) }
         displayList.clear()
         displayList.addAll(filtered)
         productAdapter.notifyDataSetChanged()
         updateCartBadge()
     }
 
-    // IMPROVEMENT #6: Update cart badge count
     private fun updateCartBadge() {
         val badge = findViewById<TextView>(R.id.tvCartBadge)
         val count = CartManager.cartList.size
@@ -145,7 +139,6 @@ class Dashboard : AppCompatActivity() {
     }
 
     private fun setupClickListeners(role: String) {
-        // IMPROVEMENT #11: Sort + category chips
         findViewById<Button>(R.id.btnSortPrice)?.setOnClickListener {
             displayList.sortBy { it.price }
             productAdapter.notifyDataSetChanged()
@@ -183,25 +176,26 @@ class Dashboard : AppCompatActivity() {
 
     private fun setupSearch() {
         val et = findViewById<TextInputEditText>(R.id.etSearchFull)
-        // IMPROVEMENT #5: Restore last query on screen resume
         et?.setText(lastQuery)
-
         findViewById<View>(R.id.btnSearchFull)?.setOnClickListener {
             lastQuery = et?.text.toString().trim().lowercase()
             filterAndRefreshList()
         }
     }
 
+    // ✅ FIXED: Uses custom item_list_text layout with dark text instead of
+    //           android.R.layout.simple_list_item_2 which shows white/invisible text
     class ProductAdapter(context: Context, private val products: List<Product>) : BaseAdapter() {
         private val inflater = LayoutInflater.from(context)
-        override fun getCount()             = products.size
-        override fun getItem(p: Int)        = products[p]
-        override fun getItemId(p: Int)      = p.toLong()
+        override fun getCount()      = products.size
+        override fun getItem(p: Int) = products[p]
+        override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
-            val view = v ?: inflater.inflate(android.R.layout.simple_list_item_2, parent, false)
+            val view = v ?: inflater.inflate(R.layout.item_list_text, parent, false)
             val item = getItem(p)
-            view.findViewById<TextView>(android.R.id.text1).text = item.name
-            view.findViewById<TextView>(android.R.id.text2).text = "₱${"%.2f".format(item.price)} • Stock: ${item.stock}"
+            view.findViewById<TextView>(R.id.tvLine1).text = item.name
+            view.findViewById<TextView>(R.id.tvLine2).text =
+                "₱${"%.2f".format(item.price)}  •  Stock: ${item.stock}  •  ⭐ ${item.rating}"
             return view
         }
     }

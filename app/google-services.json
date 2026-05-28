@@ -2,6 +2,7 @@
   "project_info": {
     "project_number": "539765079822",
     "project_id": "lazada-e7c5b",
+    "firebase_url": "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/",
     "storage_bucket": "lazada-e7c5b.firebasestorage.app"
   },
   "client": [

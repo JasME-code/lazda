@@ -2,6 +2,9 @@ package com.example.myapplication
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ImageView
@@ -26,7 +29,6 @@ class SellerDashboardActivity : AppCompatActivity() {
     private lateinit var orderAdapter: ArrayAdapter<String>
     private var ordersListener: ValueEventListener? = null
 
-    // ✅ FIXED: Correct database URL matching google-services.json
     private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,22 +42,32 @@ class SellerDashboardActivity : AppCompatActivity() {
         val btnEdit   = findViewById<Button>(R.id.btnViewListings)
         val btnLogout = findViewById<ImageView>(R.id.btnLogout)
 
-        orderAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, mutableListOf())
+        // ✅ FIXED: Custom adapter with dark text — simple_list_item_1 shows white/invisible text
+        orderAdapter = object : ArrayAdapter<String>(this, R.layout.item_list_text, R.id.tvLine1, mutableListOf()) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = convertView ?: LayoutInflater.from(context)
+                    .inflate(R.layout.item_list_text, parent, false)
+                val text  = getItem(position) ?: ""
+                val lines = text.split("\n")
+                view.findViewById<TextView>(R.id.tvLine1).text = lines.getOrNull(0) ?: ""
+                view.findViewById<TextView>(R.id.tvLine2).text = lines.drop(1).joinToString("\n")
+                return view
+            }
+        }
         lvOrders.adapter = orderAdapter
 
         listenToSellerOrders()
 
         lvOrders.setOnItemClickListener { _, _, position, _ ->
             if (position >= liveOrders.size) return@setOnItemClickListener
-            val orderMap = liveOrders[position]
-            val orderId  = orderMap["orderId"] as? String ?: return@setOnItemClickListener
-            val status   = orderMap["status"] as? String ?: "Pending"
+            val orderMap  = liveOrders[position]
+            val orderId   = orderMap["orderId"] as? String ?: return@setOnItemClickListener
+            val status    = orderMap["status"] as? String ?: "Pending"
             val newStatus = when (status) { "Pending" -> "Shipped"; "Shipped" -> "Delivered"; else -> null }
             if (newStatus == null) {
                 Toast.makeText(this, "Order already finalized.", Toast.LENGTH_SHORT).show()
                 return@setOnItemClickListener
             }
-            // ✅ FIXED: Uses databaseUrl
             FirebaseDatabase.getInstance(databaseUrl).getReference("orders").child(orderId).child("status")
                 .setValue(newStatus)
                 .addOnSuccessListener {
@@ -66,8 +78,8 @@ class SellerDashboardActivity : AppCompatActivity() {
                 }
         }
 
-        btnAdd.setOnClickListener    { startActivity(Intent(this, AddProductActivity::class.java)) }
-        btnEdit.setOnClickListener   { startActivity(Intent(this, EditListingsActivity::class.java)) }
+        btnAdd.setOnClickListener  { startActivity(Intent(this, AddProductActivity::class.java)) }
+        btnEdit.setOnClickListener { startActivity(Intent(this, EditListingsActivity::class.java)) }
         btnLogout.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("Logout").setMessage("Are you sure you want to log out?")
@@ -90,7 +102,6 @@ class SellerDashboardActivity : AppCompatActivity() {
     @Suppress("UNCHECKED_CAST")
     private fun listenToSellerOrders() {
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        // ✅ FIXED: Uses databaseUrl
         FirebaseDatabase.getInstance(databaseUrl).getReference("users").child(currentUid)
             .get().addOnSuccessListener { userSnapshot ->
                 val sellerName = userSnapshot.child("name").getValue(String::class.java) ?: ""
@@ -104,14 +115,11 @@ class SellerDashboardActivity : AppCompatActivity() {
                         for (child in snapshot.children) {
                             val orderMap = child.value as? Map<String, Any> ?: continue
                             val items = orderMap["items"] as? List<Map<String, Any>> ?: emptyList()
-
                             val myItems = items.filter { item ->
                                 item["seller"] == sellerName || item["sellerUid"] == currentUid
                             }
                             if (myItems.isEmpty()) continue
-
                             liveOrders.add(orderMap)
-
                             if (orderMap["status"] == "Delivered") {
                                 myItems.forEach { item ->
                                     totalRevenue += (item["price"] as? Number)?.toDouble() ?: 0.0
@@ -136,7 +144,6 @@ class SellerDashboardActivity : AppCompatActivity() {
                         Toast.makeText(this@SellerDashboardActivity, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
-                // ✅ FIXED: Uses databaseUrl
                 FirebaseDatabase.getInstance(databaseUrl).getReference("orders")
                     .addValueEventListener(ordersListener!!)
             }

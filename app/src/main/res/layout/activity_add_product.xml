@@ -43,7 +43,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
             android:text="Product Name"
-            android:textColor="#333333"
+            android:textColor="#111111"
             android:textSize="13sp"/>
 
         <EditText
@@ -55,8 +55,8 @@
             android:hint="e.g. Wireless Earbuds"
             android:inputType="textCapWords"
             android:padding="12dp"
-            android:textColor="#333333"
-            android:textColorHint="#AAAAAA" />
+            android:textColor="#111111"
+            android:textColorHint="#888888" />
 
         <!-- Price -->
         <TextView
@@ -64,7 +64,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
             android:text="Price (₱)"
-            android:textColor="#333333"
+            android:textColor="#111111"
             android:textSize="13sp"/>
 
         <EditText
@@ -76,8 +76,8 @@
             android:hint="0.00"
             android:inputType="numberDecimal"
             android:padding="12dp"
-            android:textColor="#333333"
-            android:textColorHint="#AAAAAA" />
+            android:textColor="#111111"
+            android:textColorHint="#888888" />
 
         <!-- Quantity -->
         <TextView
@@ -85,7 +85,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
             android:text="Quantity / Stock"
-            android:textColor="#333333"
+            android:textColor="#111111"
             android:textSize="13sp"/>
 
         <EditText
@@ -97,8 +97,8 @@
             android:hint="0"
             android:inputType="number"
             android:padding="12dp"
-            android:textColor="#333333"
-            android:textColorHint="#AAAAAA" />
+            android:textColor="#111111"
+            android:textColorHint="#888888" />
 
         <!-- Description -->
         <TextView
@@ -106,7 +106,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
             android:text="Description"
-            android:textColor="#333333"
+            android:textColor="#111111"
             android:textSize="13sp"/>
 
         <EditText
@@ -120,8 +120,8 @@
             android:inputType="textMultiLine"
             android:lines="4"
             android:padding="12dp"
-            android:textColor="#333333"
-            android:textColorHint="#AAAAAA" />
+            android:textColor="#111111"
+            android:textColorHint="#888888" />
 
         <!-- Upload Button -->
         <Button
@@ -130,7 +130,7 @@
             android:layout_height="56dp"
             android:backgroundTint="#F57224"
             android:text="UPLOAD TO SHOP"
-            android:textColor="#FFFFFF"
+            android:textColor="#000000"
             android:textSize="16sp"
             android:textStyle="bold" />
 

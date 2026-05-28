@@ -1,6 +1,9 @@
 package com.example.myapplication
 
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.ListView
@@ -17,8 +20,9 @@ class OrderHistoryActivity : AppCompatActivity() {
 
     private val orders = mutableListOf<String>()
     private lateinit var adapter: ArrayAdapter<String>
-    // IMPROVEMENT #9: Hold listener reference for cleanup
     private var ordersListener: ValueEventListener? = null
+
+    private val databaseUrl = "https://lazada-e7c5b-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,7 +33,19 @@ class OrderHistoryActivity : AppCompatActivity() {
         val tvEmpty  = findViewById<TextView>(R.id.tvEmptyOrders)
         btnBack.setOnClickListener { finish() }
 
-        adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, orders)
+        // ✅ FIXED: Custom adapter with dark text — simple_list_item_1 shows white/invisible text
+        adapter = object : ArrayAdapter<String>(this, R.layout.item_list_text, R.id.tvLine1, orders) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = convertView ?: LayoutInflater.from(context)
+                    .inflate(R.layout.item_list_text, parent, false)
+                val text = getItem(position) ?: ""
+                val lines = text.split("\n")
+                view.findViewById<TextView>(R.id.tvLine1).text = lines.getOrNull(0) ?: ""
+                view.findViewById<TextView>(R.id.tvLine2).text =
+                    lines.drop(1).joinToString("\n")
+                return view
+            }
+        }
         lvOrders.adapter = adapter
 
         val currentUid = FirebaseAuth.getInstance().currentUser?.uid
@@ -56,7 +72,6 @@ class OrderHistoryActivity : AppCompatActivity() {
                     val address = orderMap["address"] as? String ?: ""
                     val payment = orderMap["paymentMethod"] as? String ?: ""
 
-                    // IMPROVEMENT #7: Show short human-readable order number
                     val statusEmoji = when (status) {
                         "Pending"   -> "⏳"
                         "Shipped"   -> "🚚"
@@ -65,27 +80,27 @@ class OrderHistoryActivity : AppCompatActivity() {
                     }
                     orders.add(
                         "Order #$orderNumber  $statusEmoji $status\n" +
-                        "Total: ₱${"%.2f".format(total)}  •  $date\n" +
-                        "📍 $address\n💳 $payment"
+                                "Total: ₱${"%.2f".format(total)}  •  $date\n" +
+                                "📍 $address\n💳 $payment"
                     )
                 }
                 adapter.notifyDataSetChanged()
-                tvEmpty.visibility  = if (orders.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
-                lvOrders.visibility = if (orders.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                tvEmpty.visibility  = if (orders.isEmpty()) View.VISIBLE else View.GONE
+                lvOrders.visibility = if (orders.isEmpty()) View.GONE    else View.VISIBLE
             }
             override fun onCancelled(error: DatabaseError) {
                 Toast.makeText(this@OrderHistoryActivity, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
             }
         }
-        FirebaseDatabase.getInstance().getReference("orders")
+        // ✅ Also fixed: uses databaseUrl
+        FirebaseDatabase.getInstance(databaseUrl).getReference("orders")
             .addValueEventListener(ordersListener!!)
     }
 
-    // IMPROVEMENT #9: Remove listener on destroy
     override fun onDestroy() {
         super.onDestroy()
         ordersListener?.let {
-            FirebaseDatabase.getInstance().getReference("orders").removeEventListener(it)
+            FirebaseDatabase.getInstance(databaseUrl).getReference("orders").removeEventListener(it)
         }
     }
 }
