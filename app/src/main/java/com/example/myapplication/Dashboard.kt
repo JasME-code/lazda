@@ -24,10 +24,10 @@ val database = FirebaseDatabase.getInstance().getReference("products")
 
 class Dashboard : AppCompatActivity() {
 
-    private val masterList   = mutableListOf<Product>()
-    private val displayList  = mutableListOf<Product>()
+    private val masterList  = mutableListOf<Product>()
+    private val displayList = mutableListOf<Product>()
     private lateinit var productAdapter: ProductAdapter
-    private var userAge: Int = 0
+    private var customerAge: Int = 0       // ✅ customer's age loaded from Firebase
     private var lastQuery: String = ""
     private var productsListener: ValueEventListener? = null
 
@@ -36,15 +36,16 @@ class Dashboard : AppCompatActivity() {
         setContentView(R.layout.dashboard)
 
         val user = intent.getParcelableExtra<User>("USER_DATA")
-        userAge  = user?.age ?: 0
-        val role = user?.role ?: "Customer"
+        customerAge = user?.age ?: 0
+        val role    = user?.role ?: "Customer"
 
-        if (user == null) {
+        // If age wasn't passed via Intent, fetch it from Firebase
+        if (customerAge == 0) {
             val uid = FirebaseAuth.getInstance().currentUser?.uid
             if (uid != null) {
                 FirebaseDatabase.getInstance().getReference("users").child(uid)
                     .get().addOnSuccessListener { snapshot ->
-                        userAge = snapshot.child("age").getValue(Int::class.java) ?: 0
+                        customerAge = snapshot.child("age").getValue(Int::class.java) ?: 0
                         filterAndRefreshList()
                     }
             }
@@ -60,15 +61,11 @@ class Dashboard : AppCompatActivity() {
         productsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 masterList.clear()
-                if (!snapshot.exists()) {
-                    uploadDefaultsToFirebase()
-                } else {
-                    for (item in snapshot.children) {
-                        val p = item.getValue(Product::class.java)
-                        if (p != null) masterList.add(p)
-                    }
-                    filterAndRefreshList()
+                for (item in snapshot.children) {
+                    val p = item.getValue(Product::class.java)
+                    if (p != null) masterList.add(p)
                 }
+                filterAndRefreshList()
             }
             override fun onCancelled(error: DatabaseError) {
                 Toast.makeText(this@Dashboard, "Database Error: ${error.message}", Toast.LENGTH_SHORT).show()
@@ -82,40 +79,18 @@ class Dashboard : AppCompatActivity() {
         productsListener?.let { database.removeEventListener(it) }
     }
 
-    private fun uploadDefaultsToFirebase() {
-        val seedData = listOf(
-            Triple("Nike Pegasus 42",    5999.0 to 15, false),
-            Triple("Gaming Laptop",      45000.0 to 5, false),
-            Triple("Special Item (18+)", 1200.0 to 2,  true)
-        )
-        val sellers = listOf("Nike Official", "TechShop", "AdultStore")
-        seedData.forEachIndexed { i, (name, priceStock, restricted) ->
-            val key = database.push().key ?: return@forEachIndexed
-            database.child(key).setValue(Product(
-                id = key.hashCode(), name = name, price = priceStock.first,
-                rating = 4.9f - (i * 0.3f), seller = sellers[i], imageRes = R.drawable.img,
-                category = "General", stock = priceStock.second, material = "Standard",
-                usage = "General", details = listOf("Seed product"), isRestricted = restricted,
-                sellerUid = "system", firebaseKey = key
-            ))
-        }
-    }
-
-    private fun setupProductList() {
-        val lvFlash = findViewById<ListView>(R.id.listViewFlashSale)
-        productAdapter = ProductAdapter(this, displayList)
-        lvFlash.adapter = productAdapter
-        lvFlash.setOnItemClickListener { _, _, position, _ ->
-            val intent = Intent(this, ProductDetailActivity::class.java)
-            intent.putExtra("PRODUCT_DATA", displayList[position])
-            startActivity(intent)
-        }
-    }
-
     private fun filterAndRefreshList() {
-        val base = if (userAge < 18) masterList.filter { !it.isRestricted } else masterList.toList()
+        val base = masterList.filter { product ->
+            // ✅ AGE FILTER: only show products whose minAge <= customer's age
+            // minAge = 0 means no restriction, everyone sees it
+            // minAge = 13 means only 13+ customers see it
+            // minAge = 18 means only 18+ customers see it
+            customerAge >= product.minAge
+        }
+
         val filtered = if (lastQuery.isBlank()) base
         else base.filter { it.name.lowercase().contains(lastQuery) }
+
         displayList.clear()
         displayList.addAll(filtered)
         productAdapter.notifyDataSetChanged()
@@ -124,7 +99,7 @@ class Dashboard : AppCompatActivity() {
 
     private fun updateCartBadge() {
         val badge = findViewById<TextView>(R.id.tvCartBadge)
-        val count = CartManager.cartList.size
+        val count = CartManager.cartItems.size
         if (count > 0) {
             badge?.visibility = View.VISIBLE
             badge?.text       = if (count > 99) "99+" else count.toString()
@@ -138,6 +113,17 @@ class Dashboard : AppCompatActivity() {
         updateCartBadge()
     }
 
+    private fun setupProductList() {
+        val lvFlash = findViewById<ListView>(R.id.listViewFlashSale)
+        productAdapter = ProductAdapter(this, displayList)
+        lvFlash.adapter = productAdapter
+        lvFlash.setOnItemClickListener { _, _, position, _ ->
+            val intent = Intent(this, ProductDetailActivity::class.java)
+            intent.putExtra("PRODUCT_DATA", displayList[position])
+            startActivity(intent)
+        }
+    }
+
     private fun setupClickListeners(role: String) {
         findViewById<Button>(R.id.btnSortPrice)?.setOnClickListener {
             displayList.sortBy { it.price }
@@ -147,7 +133,9 @@ class Dashboard : AppCompatActivity() {
         val btnSeller = findViewById<Button>(R.id.btnSellerCenter)
         if (role == "Seller") {
             btnSeller?.visibility = View.VISIBLE
-            btnSeller?.setOnClickListener { startActivity(Intent(this, SellerDashboardActivity::class.java)) }
+            btnSeller?.setOnClickListener {
+                startActivity(Intent(this, SellerDashboardActivity::class.java))
+            }
         }
 
         findViewById<View>(R.id.btnCartIcon)?.setOnClickListener {
@@ -183,19 +171,18 @@ class Dashboard : AppCompatActivity() {
         }
     }
 
-    // ✅ FIXED: Uses custom item_list_text layout with dark text instead of
-    //           android.R.layout.simple_list_item_2 which shows white/invisible text
     class ProductAdapter(context: Context, private val products: List<Product>) : BaseAdapter() {
         private val inflater = LayoutInflater.from(context)
-        override fun getCount()      = products.size
-        override fun getItem(p: Int) = products[p]
+        override fun getCount()        = products.size
+        override fun getItem(p: Int)   = products[p]
         override fun getItemId(p: Int) = p.toLong()
         override fun getView(p: Int, v: View?, parent: ViewGroup?): View {
             val view = v ?: inflater.inflate(R.layout.item_list_text, parent, false)
             val item = getItem(p)
             view.findViewById<TextView>(R.id.tvLine1).text = item.name
             view.findViewById<TextView>(R.id.tvLine2).text =
-                "₱${"%.2f".format(item.price)}  •  Stock: ${item.stock}  •  ⭐ ${item.rating}"
+                "₱${"%.2f".format(item.price)}  •  Stock: ${item.stock}  •  ⭐ ${item.rating}" +
+                        if (item.minAge > 0) "  •  🔞 ${item.minAge}+" else ""
             return view
         }
     }
